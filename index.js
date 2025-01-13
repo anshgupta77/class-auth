@@ -10,14 +10,16 @@ app.use(cookieParser());
 const users = [];
 
 // server
-const sessions = new Map();
+// const sessions = new Map();
+// const 
 
 
 app.get("/", authToken, (req, res) =>{
     // console.log(req.cookies);
-    // const user = req.user;
-    // res.json({message: `helloe!!! ${user.username}`});
-    res.json({message: "Hello world"});
+    const user = req.user;
+    console.log(user)
+    res.json({message: `helloe!!! ${user}`});
+    // res.json({message: "Hello world",});
 })
 
 
@@ -26,18 +28,18 @@ function authToken(req, res, next){
     // console.log(req.headers);
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
-    console.log(token);
+    console.log("Token",token);
 
     if(!token){
         return res.status(500).json({message: "Not authorise"});
     }
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, userInfo){
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, token_data){
         if(err){
             return res.status(500).json({message: "Forbidden"});
         }
         // userinfo.iat
-        req.user = userInfo;
+        req.user = token_data.username;
         next();
     })
 }

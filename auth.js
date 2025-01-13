@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
 app.use(express.json());
 app.use(cookieParser());
 const users = [];
-
+const sessions = new Set();
 // server
 // const sessions = new Map();
 
@@ -64,28 +64,58 @@ app.post("/login", async (req,res) =>{
 
 
     const userInfo = {username: user.username};
-    const token = jwt.sign(userInfo, process.env.ACCESS_TOKEN_SECRET);
-    res.status(201).json({token: token});
-
-
+    // const token_data = {user: userInfo};
+    const token = generateToken(userInfo)
+    const refresh_token = jwt.sign(userInfo,  process.env.REFRESH_TOKEN_SECRET);
+    sessions.add(refresh_token);
+    res.status(201).json({token: token, refresh_token: refresh_token});
 })
+
+app.post("/token", (req,res) =>{
+    const refresh_token = req.body.token;
+    if(!sessions.has(refresh_token)) return res.status(500).json({message: "Not authorise"});
+
+    jwt.verify(refresh_token, process.env.REFRESH_TOKEN_SECRET, function(err, token_data){
+        if(err){
+            return res.status(500).json({message: "Forbidden", err: err.message});
+        }
+
+        // timestamp should be remved so that it will generate new token.
+        console.log(token_data);
+        const token = generateToken({user: token_data.username});
+        return res.json({ new_access_token : token});
+    })
+})
+
+
 
 app.delete("/logout", (req,res) =>{
-    const sessionId = req.cookies.sessionId;// req.user each user have it own req.user.
+    // const sessionId = req.cookies.sessionId;// req.user each user have it own req.user.
 
-    const user = sessions.get(sessionId);
-    if(!user){
-        return res.json({message: "User already logout"});
+    // const user = sessions.get(sessionId);
+    // if(!user){
+    //     return res.json({message: "User already logout"});
+    // }
+
+
+    // sessions.delete(sessionId);
+    // console.log(sessionId);
+    // res.json({message: ` ${user.username} Logout successfully`});
+
+
+    const refresh_token = req.body.token;
+    console.log(refresh_token);
+    if(!sessions.has(refresh_token)){
+        return res.status(404).json({message: "dont try again"})
     }
-
-
-    sessions.delete(sessionId);
-    console.log(sessionId);
-    res.json({message: ` ${user.username} Logout successfully`});
+    sessions.delete(refresh_token);
+    res.json({message: "Logout successfully"})
 })
 
 
-
+function generateToken(data){
+    return jwt.sign(data, process.env.ACCESS_TOKEN_SECRET, {expiresIn: "30s"});
+}
 
 
 app.listen(5060, ()=>{
